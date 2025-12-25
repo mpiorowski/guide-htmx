@@ -245,26 +245,57 @@ func handleSomeAction(w http.ResponseWriter, r *http.Request) {
 
 SSE provides a simple way to push updates from server to browser over HTTP.
 
-**Server side (Go):**
+**Server side (Go) - Broadcast pattern:**
 
 ```go
-var toastChan = make(chan string, 10)
+// Broadcaster sends to ALL connected clients
+type Broadcaster struct {
+    mu      sync.RWMutex
+    clients map[chan string]bool
+}
+
+var broadcast = &Broadcaster{clients: make(map[chan string]bool)}
+
+func (b *Broadcaster) Subscribe() chan string {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    ch := make(chan string, 10)
+    b.clients[ch] = true
+    return ch
+}
+
+func (b *Broadcaster) Unsubscribe(ch chan string) {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    delete(b.clients, ch)
+    close(ch)
+}
+
+func (b *Broadcaster) Send(msg string) {
+    b.mu.RLock()
+    defer b.mu.RUnlock()
+    for ch := range b.clients {
+        select {
+        case ch <- msg:
+        default: // buffer full, skip
+        }
+    }
+}
 
 func handleSSE(w http.ResponseWriter, r *http.Request) {
-    // Required headers
     w.Header().Set("Content-Type", "text/event-stream")
     w.Header().Set("Cache-Control", "no-cache")
     w.Header().Set("Connection", "keep-alive")
 
     flusher := w.(http.Flusher)
+    clientChan := broadcast.Subscribe()
+    defer broadcast.Unsubscribe(clientChan)
 
     for {
         select {
         case <-r.Context().Done():
-            // Client disconnected
             return
-        case msg := <-toastChan:
-            // SSE format: "event: name\ndata: payload\n\n"
+        case msg := <-clientChan:
             fmt.Fprintf(w, "event: sse-toast\ndata: %s\n\n", msg)
             flusher.Flush()
         }
@@ -428,7 +459,7 @@ Button click → showModal() → dispatch event → x-transition slides in → x
 
 ### 3. Toast via SSE
 ```
-Form submit → hx-post → Server handler → toastChan <- msg → SSE sends → Alpine receives → Toast appears
+Form submit → hx-post → Server handler → broadcast.Send() → ALL clients receive → Alpine renders toast
 ```
 
 ### 4. Form with SSE Feedback
