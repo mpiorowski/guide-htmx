@@ -17,6 +17,7 @@ templ generate && go run .
 | **Drawers** | Sliding panels (left, right, bottom) using CSS transforms and Alpine.js transitions |
 | **Toasts** | Server-pushed notifications via SSE with auto-dismiss and queue management |
 | **Inline Swap** | Classic HTMX pattern with `hx-get` and `hx-swap="innerHTML"` |
+| **Theme Toggle** | Dark/light mode with localStorage persistence and no flash |
 | **SSE** | Dead simple Server-Sent Events for real-time updates |
 
 ---
