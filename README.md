@@ -479,6 +479,17 @@ Button passes $el via event → Modal stores trigger → On close → $nextTick(
 
 ---
 
+## Roadmap
+
+Future additions to this guide:
+
+- [ ] **Infinite scroll / Load more** - `hx-get` + `hx-swap="beforeend"` + `hx-trigger="revealed"`
+- [ ] **Search with debounce** - `hx-trigger="keyup changed delay:300ms"`
+- [ ] **Tabs** - Alpine + HTMX working together
+- [ ] **WebSocket demo** - Two-way real-time communication
+
+---
+
 ## Learn More
 
 - [HTMX Documentation](https://htmx.org/docs/)
