@@ -24,27 +24,27 @@ templ generate && go run .
 ## The Stack
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Browser                                                │
-│  ┌───────────┐  ┌───────────┐  ┌───────────────────┐   │
-│  │  HTMX     │  │ Alpine.js │  │ DaisyUI/Tailwind  │   │
-│  │  ────────  │  │  ───────  │  │  ──────────────   │   │
-│  │  hx-*     │  │  x-*      │  │  UI Components    │   │
-│  │  SSE ext  │  │  State    │  │  Styling          │   │
-│  └───────────┘  └───────────┘  └───────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│  Browser                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐  │
+│  │  HTMX       │  │  Alpine.js  │  │  DaisyUI/     │  │
+│  │  ─────────  │  │  ─────────  │  │  Tailwind     │  │
+│  │  hx-*       │  │  x-*        │  │  ───────────  │  │
+│  │  SSE ext    │  │  State      │  │  UI + Styling │  │
+│  └─────────────┘  └─────────────┘  └───────────────┘  │
+└───────────────────────────────────────────────────────┘
                           │
                           │ HTTP + SSE
                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Go Server (~80 lines total)                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
-│  │ net/http    │  │ Templ       │  │ SSE endpoint    │ │
-│  │ ──────────  │  │ ─────       │  │ ────────────    │ │
-│  │ Routing     │  │ Templates   │  │ text/event-     │ │
-│  │             │  │             │  │ stream          │ │
-│  └─────────────┘  └─────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│  Go Server                                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐  │
+│  │  net/http   │  │  Templ      │  │  SSE          │  │
+│  │  ─────────  │  │  ─────────  │  │  ───────────  │  │
+│  │  Routing    │  │  Templates  │  │  text/event-  │  │
+│  │  Handlers   │  │             │  │  stream       │  │
+│  └─────────────┘  └─────────────┘  └───────────────┘  │
+└───────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -80,13 +80,24 @@ We use the native HTML `<dialog>` element - no JavaScript library needed for the
 </dialog>
 ```
 
-**Alpine.js enhancements:**
+**Alpine.js enhancements with focus restoration:**
+
+When using `x-trap`, the native dialog's focus restoration breaks. Fix by tracking the trigger element:
 
 ```html
+<!-- Trigger: pass element reference -->
+<button onclick="my_modal.showModal()"
+  x-data
+  x-on:click="$nextTick(() => $dispatch('modal-open', { trigger: $el }))">
+  Open Modal
+</button>
+
+<!-- Modal: store trigger and restore focus on close -->
 <dialog id="my_modal" class="modal"
-  x-data="{ open: false }"
-  x-on:close="open = false"
-  x-on:cancel="open = false">
+  x-data="{ open: false, trigger: null }"
+  x-on:modal-open.window="open = true; trigger = $event.detail.trigger"
+  x-on:close="open = false; $nextTick(() => trigger?.focus())"
+  x-on:cancel="open = false; $nextTick(() => trigger?.focus())">
 
   <div class="modal-box"
     x-show="open"
@@ -128,10 +139,19 @@ Drawers are modals that slide in from the side. We use `modal-end` (right), `mod
 **Right-sliding drawer:**
 
 ```html
+<!-- Trigger with focus restoration -->
+<button onclick="drawer.showModal()"
+  x-data
+  x-on:click="$nextTick(() => $dispatch('drawer-open', { trigger: $el }))">
+  Open Drawer
+</button>
+
+<!-- Drawer -->
 <dialog id="drawer" class="modal modal-end"
-  x-data="{ open: false }"
-  x-on:drawer-open.window="open = true"
-  x-on:close="open = false">
+  x-data="{ open: false, trigger: null }"
+  x-on:drawer-open.window="open = true; trigger = $event.detail.trigger"
+  x-on:close="open = false; $nextTick(() => trigger?.focus())"
+  x-on:cancel="open = false; $nextTick(() => trigger?.focus())">
 
   <div class="modal-box h-full max-h-full rounded-l-2xl rounded-r-none"
     x-show="open"
@@ -152,16 +172,6 @@ Drawers are modals that slide in from the side. We use `modal-end` (right), `mod
     <button @click="open = false">close</button>
   </form>
 </dialog>
-```
-
-**Opening the drawer:**
-
-```html
-<button onclick="drawer.showModal()"
-        x-data
-        x-on:click="$nextTick(() => $dispatch('drawer-open'))">
-  Open Drawer
-</button>
 ```
 
 **Left navigation drawer:** Use `modal-start` and `-translate-x-full` for the enter animation.
@@ -332,9 +342,9 @@ Note: Two newlines (`\n\n`) mark the end of a message.
 ## File Structure
 
 ```
-guide/
-├── main.go              # Server entry point, routes (~50 lines)
-├── sse.go               # SSE endpoint handler (~30 lines)
+guide-htmx/
+├── main.go              # Server entry point, routes, handlers
+├── sse.go               # SSE endpoint handler
 ├── go.mod               # Go module
 ├── README.md            # This file
 └── templates/
@@ -370,24 +380,21 @@ open http://localhost:8080
 All frontend deps loaded via CDN - no npm, no build step:
 
 ```html
+<!-- DaisyUI + Tailwind CSS 4 -->
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5.5.14/daisyui.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
 <!-- HTMX core -->
 <script src="https://unpkg.com/htmx.org@2.0.8"></script>
 
 <!-- HTMX SSE extension -->
 <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
 
-<!-- Idiomorph for smooth DOM morphing -->
-<script src="https://unpkg.com/idiomorph@0.7.3/dist/idiomorph-ext.min.js"></script>
-
 <!-- Alpine.js Focus plugin (for x-trap) - must load before Alpine -->
 <script defer src="https://unpkg.com/@alpinejs/focus@3.15.3/dist/cdn.min.js"></script>
 
 <!-- Alpine.js -->
 <script defer src="https://unpkg.com/alpinejs@3.15.3/dist/cdn.min.js"></script>
-
-<!-- DaisyUI + Tailwind -->
-<link href="https://cdn.jsdelivr.net/npm/daisyui@5.5.14/daisyui.css" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
 ```
 
 **Go dependencies:**
@@ -427,6 +434,16 @@ Form submit → hx-post → Server handler → toastChan <- msg → SSE sends �
 ### 4. Form with SSE Feedback
 ```
 Form submit → hx-post (swap=none) → Server processes → SSE toast → Modal closes
+```
+
+### 5. Inline HTMX Swap
+```
+Button click → hx-get → Server returns HTML → hx-swap="innerHTML" updates target
+```
+
+### 6. Focus Restoration with x-trap
+```
+Button passes $el via event → Modal stores trigger → On close → $nextTick(() => trigger?.focus())
 ```
 
 ---
