@@ -232,8 +232,8 @@ Server-pushed notifications using SSE. The Alpine.js component manages a queue o
 func handleSomeAction(w http.ResponseWriter, r *http.Request) {
     // Do something...
 
-    // Send toast notification via channel
-    toastChan <- `{"type":"success","message":"Action completed!"}`
+    // Broadcast toast to ALL connected clients
+    broadcast.Send(`{"type":"success","message":"Action completed!"}`)
 
     w.WriteHeader(http.StatusOK)
 }

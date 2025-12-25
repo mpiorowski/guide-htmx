@@ -11,8 +11,6 @@ import (
 	"guide/templates"
 )
 
-// Single channel for SSE - dead simple, no broker
-var toastChan = make(chan string, 10)
 
 func main() {
 	http.HandleFunc("/", handleIndex)
@@ -59,7 +57,7 @@ func handleTriggerToast(w http.ResponseWriter, r *http.Request) {
 		"message": msg,
 	}
 	data, _ := json.Marshal(toast)
-	toastChan <- string(data)
+	broadcast.Send(string(data))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -78,7 +76,7 @@ func handleDeleteItem(w http.ResponseWriter, r *http.Request) {
 		"message": "Item deleted successfully!",
 	}
 	data, _ := json.Marshal(toast)
-	toastChan <- string(data)
+	broadcast.Send(string(data))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -100,7 +98,7 @@ func handleFormSubmit(w http.ResponseWriter, r *http.Request) {
 		"message": "Form submitted! Name: " + name + ", Email: " + email,
 	}
 	data, _ := json.Marshal(toast)
-	toastChan <- string(data)
+	broadcast.Send(string(data))
 
 	// Return empty response - toast handles feedback
 	w.WriteHeader(http.StatusOK)
@@ -129,7 +127,7 @@ func handleSpamToasts(w http.ResponseWriter, r *http.Request) {
 				"message": messages[i],
 			}
 			data, _ := json.Marshal(toast)
-			toastChan <- string(data)
+			broadcast.Send(string(data))
 			time.Sleep(300 * time.Millisecond)
 		}
 	}()
